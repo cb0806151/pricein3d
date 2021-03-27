@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price in 3D</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            background: black;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="file" name="inputfile"
+            id="inputfile">
+    <br>
+   
+    <pre id="output"></pre>
+    <div id='myDiv'>
+        <script>
+            var columns = [[],[],[]]
+            var counter = 0;
+            var testData;
+            document.getElementById('inputfile')
+                .addEventListener('change', function() {
+                
+                var fr=new FileReader();
+                fr.onload=function(){
+                    console.log(typeof fr.result);
+                    // console.log(fr.result);
+                    // testData = fr.result.split(/[\s,\n]+/);
+                    
+                    testData = CSVToArray(fr.result)
+                    testData.shift();
+                    createGraph()
+                }
+                
+                fr.readAsText(this.files[0]);
+            })
+
+            function CSVToArray( strData, strDelimiter ){
+                // Check to see if the delimiter is defined. If not,
+                // then default to comma.
+                strDelimiter = (strDelimiter || ",");
+
+                // Create a regular expression to parse the CSV values.
+                var objPattern = new RegExp(
+                    (
+                        // Delimiters.
+                        "(\\" + strDelimiter + "|\\r?\\n|\\r|^)" +
+
+                        // Quoted fields.
+                        "(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|" +
+
+                        // Standard fields.
+                        "([^\"\\" + strDelimiter + "\\r\\n]*))"
+                    ),
+                    "gi"
+                    );
+
+
+                // Create an array to hold our data. Give the array
+                // a default empty first row.
+                var arrData = [[]];
+
+                // Create an array to hold our individual pattern
+                // matching groups.
+                var arrMatches = null;
+
+
+                // Keep looping over the regular expression matches
+                // until we can no longer find a match.
+                while (arrMatches = objPattern.exec( strData )){
+
+                    // Get the delimiter that was found.
+                    var strMatchedDelimiter = arrMatches[ 1 ];
+
+                    // Check to see if the given delimiter has a length
+                    // (is not the start of string) and if it matches
+                    // field delimiter. If id does not, then we know
+                    // that this delimiter is a row delimiter.
+                    if (
+                        strMatchedDelimiter.length &&
+                        strMatchedDelimiter !== strDelimiter
+                        ){
+
+                        // Since we have reached a new row of data,
+                        // add an empty row to our data array.
+                        arrData.push( [] );
+
+                    }
+
+                    var strMatchedValue;
+
+                    // Now that we have our delimiter out of the way,
+                    // let's check to see which kind of value we
+                    // captured (quoted or unquoted).
+                    if (arrMatches[ 2 ]){
+
+                        // We found a quoted value. When we capture
+                        // this value, unescape any double quotes.
+                        strMatchedValue = arrMatches[ 2 ].replace(
+                            new RegExp( "\"\"", "g" ),
+                            "\""
+                            );
+
+                    } else {
+
+                        // We found a non-quoted value.
+                        strMatchedValue = arrMatches[ 3 ];
+
+                    }
+
+
+                    // Now that we have our value string, let's add
+                    // it to the data array.
+                    arrData[ arrData.length - 1 ].push( strMatchedValue );
+                }
+
+                // Return the parsed data.
+                return( arrData );
+            }
+
+            function createGraph() {
+
+                testData.forEach((entry, index) => {
+                    columns[0].push(new Date(entry[0] * 1000)); 
+                    columns[1].push(entry[1]); 
+                    columns[2].push(entry[2]); 
+                    counter === 2 ? counter = 0 : counter++;
+                })
+                columns[0].pop();
+                columns[1].pop();
+                columns[2].pop();
+
+                Plotly.d3.csv('https://raw.githubusercontent.com/plotly/datasets/master/3d-line1.csv', function (err, rows) {
+                    function unpack(rows, key) {
+                        return rows.map(function (row) { return row[key]; });
+                    }
+
+                    var x = columns[0]//unpack(rows, 'x');
+                    var y = columns[1]//unpack(rows, 'y');
+                    var z = columns[2]//unpack(rows, 'z');
+                    // var c = unpack(rows, 'color');
+                    Plotly.newPlot('myDiv', [{
+                        type: 'scatter3d',
+                        mode: 'lines',
+                        paper_bgcolor: '#000000',
+                        backgroundcolor: 'rgba(0,0,0,1)',
+                        x: x,
+                        y: y,
+                        z: z,
+                        opacity: 1,
+                        line: {
+                            width: 6,
+                            // color: c,
+                            reversescale: false,
+                            colorscale: 'Viridis'
+                        },
+                        hovertemplate: `Date: %{x} <br>Txd: %{y} <br>Price: $%{z}`
+                    }], {
+                        height: 640,
+                        scene: {
+                        xaxis:{title: 'Timestamp'},
+                        yaxis:{title: 'Txd'},
+                        zaxis:{title: 'Price (USD)'},
+                        },
+                    });
+                });
+
+            }
+            
+        </script>
+</body>
+
+</html>
